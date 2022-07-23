@@ -1,0 +1,68 @@
+---
+- hosts: localhost
+  become: true
+  gather_facts: false  
+  tasks: 
+    - name: yum
+      yum:
+       name: "*"
+       state: latest
+
+    - name: add jenkins to repo
+      get_url: 
+        url: https://pkg.jenkins.io/redhat-stable/jenkins.repo
+        dest: /etc/yum.repos.d/jenkins.repo
+    
+    
+    - name: download jenkins
+      rpm_key: 
+       state: present 
+       key: https://pkg.jenkins.io/redhat-stable/jenkins.io.key
+    
+    - name: add terraform repo
+      yum_repository: 
+       name: terraform 
+       description: terraform repo
+       baseurl: https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo 
+         
+
+    - name: upgrade yum
+      shell: yum upgrade 
+
+    
+    - name: install jdk
+      shell: amazon-linux-extras install java-openjdk11 -y
+
+    - name: install jenkins
+      yum: 
+        name: ['jenkins','yum-utils','docker','terraform']
+        state: present    
+    
+    - name: enable jenkins service
+      service: 
+        name: jenkins
+        state: started
+   
+    - name: add jenkins to sudoers
+      shell: cat /etc/sudoers.d/90-cloud-init-users >> /tmp/90-cloud-init-users
+
+    - name: add entry to temp file
+      shell: echo -e "jenkins ALL=(ALL) NOPASSWD:ALL"  >> /tmp/90-cloud-init-users
+    
+    - name: copy back sudo file
+      shell: cp  /tmp/90-cloud-init-users /etc/sudoers.d/90-cloud-init-users
+
+    - name: 
+      copy:
+       src: /var/lib/jenkins/secrets/initialAdminPassword 
+       dest: /home/ec2-user/Jpassword.txt
+       owner: ec2-user
+
+    - name: add user to jenkins user to docker 
+      shell: usermod -aG docker jenkins
+    
+    - name: restart jenkins service
+      service: 
+         name: docker
+         state: restarted
+    
