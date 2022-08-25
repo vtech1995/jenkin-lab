@@ -5,7 +5,9 @@ import jenkins.model.*
 
 node("Test1"){
 
-     
+     stage("scm checkout"){
+          chekout scm
+     }
      stage("testing"){
          
 
