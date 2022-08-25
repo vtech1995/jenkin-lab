@@ -14,6 +14,9 @@ node("Test1"){
 }
 
 def Execution(){
-     stage("inside function exec"){}
+     stage("aws tests"){}
+     withAWS(credentials:'env.Dev',region:'us-west-1') {
+       cfnDeploy(file:'ec2.yml', stackName:"Jenkins-ec2")
+}
 }
         
