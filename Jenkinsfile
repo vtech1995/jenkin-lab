@@ -19,5 +19,5 @@ def Execution(){
        //cfnDeploy(file:'ec2.yml', stackName:"Jenkins-ec2")
        def response = cfnValidate(file:'ec2.yaml')
        echo "template description: ${response.description}"
-}
-        
+ }
+}       
