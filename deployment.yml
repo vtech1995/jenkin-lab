@@ -14,10 +14,14 @@
         dest: /etc/yum.repos.d/jenkins.repo
 
 
-    - name: download jenkins
-      rpm_key:
-       state: present
-       key: https://pkg.jenkins.io/redhat-stable/jenkins.io.key
+    - name: download key jenkins
+      shell: sudo rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
+
+    - name: install jdk
+      shell: amazon-linux-extras install java-openjdk11 -y    
+
+    - name: install jenkins
+      shell: yum install jenkins -y
 
 
 
@@ -25,13 +29,14 @@
       shell: yum upgrade
 
 
-    - name: install jdk
-      shell: amazon-linux-extras install java-openjdk11 -y
 
-    - name: install jenkins
+
+    - name: install docker 
       yum:
-        name: ['jenkins','yum-utils','docker']
+        name: ['yum-utils','docker']
         state: present
+
+
 
     - name: enable jenkins service
       service:
