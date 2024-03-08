@@ -2,63 +2,68 @@
 - hosts: localhost
   become: true
   gather_facts: false
+
   tasks:
-    - name: yum
-      yum:
-       name: "*"
-       state: latest
 
-    - name: add jenkins to repo
-      get_url:
-        url: https://pkg.jenkins.io/redhat-stable/jenkins.repo
-        dest: /etc/yum.repos.d/jenkins.repo
-
-
-    - name: download key jenkins
-      shell: sudo rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
-
-    - name: install jdk
-      shell: amazon-linux-extras install java-openjdk11 -y    
-
-    - name: install jenkins
-      shell: yum install jenkins -y
-
-
-
-    - name: upgrade yum
-      shell: yum upgrade
-
-
-
-
-    - name: install docker 
-      yum:
-        name: ['yum-utils','docker']
+    - name: Import Jenkins GPG key
+      rpm_key:
+        key: https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
         state: present
 
+    - name: Add Jenkins repository
+      yum_repository:
+        name: jenkins
+        description: Jenkins Repository
+        baseurl: https://pkg.jenkins.io/redhat-stable
+        enabled: true
+        gpgcheck: true
 
+    - name: Install required packages
+      yum:
+        name:
+          - java-11-openjdk
+          - jenkins
+          - yum-utils
+          - device-mapper-persistent-data
+          - lvm2
+        state: present
 
-    - name: enable jenkins service
-      service:
+    - name: Start Jenkins service
+      systemd:
         name: jenkins
         state: started
+        enabled: true
 
-    - name: add jenkins to sudoers
-      shell: cat /etc/sudoers.d/90-cloud-init-users >> /tmp/90-cloud-init-users
+    - name: Install Docker
+      yum:
+        name:
+          - docker
+        state: present
 
-    - name: add entry to temp file
-      shell: echo -e "jenkins ALL=(ALL) NOPASSWD:ALL"  >> /tmp/90-cloud-init-users
+    - name: Add Jenkins user to docker group
+      user:
+        name: jenkins
+        groups: docker
 
-    - name: copy back sudo file
-      shell: cp  /tmp/90-cloud-init-users /etc/sudoers.d/90-cloud-init-users
+    - name: Start Docker service
+      systemd:
+        name: docker
+        state: started
+        enabled: true
 
-    - name: copy file Jpass
-      shell: sudo cat /var/lib/jenkins/secrets/initialAdminPassword >> /home/ec2-user/Jpassword.txt
+    - name: Grant Jenkins user sudo privileges
+      lineinfile:
+        path: /etc/sudoers.d/jenkins
+        line: 'jenkins ALL=(ALL) NOPASSWD:ALL'
+        create: true
+        validate: 'visudo -cf %s'
 
-    - name: add user to jenkins user to docker
-      shell: usermod -aG docker jenkins
+    - name: Fetch initial admin password
+      slurp:
+        src: /var/lib/jenkins/secrets/initialAdminPassword
+      register: jenkins_password
 
-    - name: restart jenkins service
-      service:
-         name: docker
-         state: restarted
+    - name: Save initial admin password to file
+      copy:
+        content: "{{ jenkins_password.content | b64decode }}"
+        dest: /home/ec2-user/Jpassword.txt
